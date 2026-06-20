@@ -9,8 +9,9 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from langchain.llms.openai import OpenAI
-from langchain.schema import SystemMessage, HumanMessage
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
+
 
 from app.agents.base_agent import BaseAgent
 from app.config import settings
@@ -52,10 +53,11 @@ class ExtractionAgent(BaseAgent):
             name="ExtractionAgent",
             description="Extracts structured scholarship information using LLM"
         )
-        self.llm = OpenAI(
+        self.llm = ChatOpenAI(
             api_key=settings.openai_api_key,
             model_name=settings.openai_model,
-            temperature=0,  # Deterministic output for data extraction
+            base_url="https://openrouter.ai/api/v1",
+            temperature=0,  
             max_tokens=1000,
             request_timeout=settings.llm_timeout,
         )
@@ -188,27 +190,27 @@ class ExtractionAgent(BaseAgent):
             
             # Call LLM
             try:
-                response = self.llm.predict(
-                    text=user_prompt,
-                    system_prompt=EXTRACTION_SYSTEM_PROMPT
-                )
+                messages = [
+                    SystemMessage(content=EXTRACTION_SYSTEM_PROMPT),
+                    HumanMessage(content=user_prompt),
+                ]
+                response = self.llm.invoke(messages)
+                response_text = response.content
             except Exception as e:
-                # Retry with fallback
                 self.log_warning(f"LLM call failed, retry {retry_count + 1}: {str(e)}")
                 if retry_count < max_retries:
-                    await asyncio.sleep(2)  # Wait before retry
+                    await asyncio.sleep(2)
                     return await self.extract_from_search_result(result, retry_count + 1)
                 raise
-            
+
             # Parse JSON response
             try:
-                # Clean response - remove markdown code blocks if present
-                response_text = response.strip()
+                response_text = response_text.strip()
                 if response_text.startswith("```"):
                     response_text = response_text.split("```")[1]
                 if response_text.startswith("json"):
                     response_text = response_text[4:]
-                
+
                 extracted_data = json.loads(response_text)
             except json.JSONDecodeError as e:
                 self.log_warning(f"Failed to parse JSON response: {e}")

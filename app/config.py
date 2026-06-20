@@ -13,6 +13,11 @@ from pydantic import Field, validator
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
+    model_config = {
+        "extra": "ignore",
+        "env_file": ".env",
+        "case_sensitive": False,
+    }
 
     # OpenAI Configuration
     openai_api_key: str = Field(..., alias="OPENAI_API_KEY")
@@ -23,7 +28,7 @@ class Settings(BaseSettings):
 
     # Telegram Configuration
     telegram_bot_token: str = Field(..., alias="TELEGRAM_BOT_TOKEN")
-    telegram_channel_id: str = Field(..., alias="TELEGRAM_CHANNEL_ID")
+    telegram_channel_id: Optional[str] = Field(default=None, alias="TELEGRAM_CHANNEL_ID")
     telegram_group_id: Optional[str] = Field(default=None, alias="TELEGRAM_GROUP_ID")
 
     # PostgreSQL Configuration
@@ -66,10 +71,6 @@ class Settings(BaseSettings):
     openai_max_retries: int = Field(default=3, alias="OPENAI_MAX_RETRIES")
     openai_retry_delay: int = Field(default=2, alias="OPENAI_RETRY_DELAY")
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-
     @property
     def scheduler_first_run_time(self) -> str:
         """Return formatted first run time (HH:MM)."""
@@ -90,7 +91,7 @@ class Settings(BaseSettings):
     @validator("openai_model")
     def validate_openai_model(cls, v):
         """Validate OpenAI model selection."""
-        valid_models = ["gpt-4", "gpt-4-turbo-preview", "gpt-3.5-turbo"]
+        valid_models = ["gpt-4", "gpt-4-turbo-preview", "gpt-3.5-turbo",'openai/gpt-5.5']
         if v not in valid_models:
             raise ValueError(f"openai_model must be one of {valid_models}")
         return v

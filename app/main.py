@@ -75,7 +75,7 @@ class ScholarshipAgent:
             initial_state = ScholarshipState(
                 search_queries=search_queries or [],
                 execution_metadata={
-                    "workflow_started_at": datetime.utcnow().isoformat(),
+                    "workflow_started_at": datetime.now().isoformat(),
                     "environment": settings.environment,
                 },
             )
@@ -84,16 +84,11 @@ class ScholarshipAgent:
             
             # Execute workflow
             self.logger.info("Invoking LangGraph workflow...")
-            final_state = await asyncio.to_thread(
-                self.workflow.invoke, 
-                initial_state.dict()
-            )
-            
-            # Convert back to ScholarshipState
-            if isinstance(final_state, dict):
-                result_state = ScholarshipState(**final_state)
-            else:
-                result_state = final_state
+            final_state = await self.workflow.ainvoke(
+                    initial_state.model_dump()
+                )
+                            
+            result_state = ScholarshipState(**final_state)
 
             # Log completion
             self.logger.info("=" * 60)
@@ -126,7 +121,7 @@ class ScholarshipAgent:
                     print(f"  • {error}")
                 print("=" * 60)
             
-            return result_state.dict()
+            return result_state.model_dump()
 
         except Exception as e:
             self.logger.error(f"Workflow execution failed: {e}", exc_info=True)
@@ -185,6 +180,83 @@ def main_sync():
     asyncio.run(main())
 
 
+def cli_entry():
+    """Command line interface entrypoint.
+
+    Commands:
+      run           - Run the workflow once (default)
+      scheduler     - Manage background scheduler (start/status/run-now/stop)
+    """
+    import argparse
+    import time
+
+    parser = argparse.ArgumentParser(prog="scholarship-agent")
+    subparsers = parser.add_subparsers(dest="command")
+
+    # run command
+    run_parser = subparsers.add_parser("run", help="Run the workflow once")
+    run_parser.add_argument("--queries", nargs="*", help="Optional search queries")
+
+    # scheduler command
+    sched_parser = subparsers.add_parser("scheduler", help="Manage the background scheduler")
+    sched_parser.add_argument("action", choices=["start", "status", "run-now", "stop"], help="Scheduler action")
+
+    args = parser.parse_args()
+
+    if args.command in (None, "run"):
+        # Default: run once
+        queries = getattr(args, "queries", None)
+        asyncio.run(main()) if queries is None else asyncio.run(_run_with_queries(args.queries))
+        return
+
+    if args.command == "scheduler":
+        sched = get_scheduler()
+
+        if args.action == "start":
+            try:
+                sched.start()
+                # Keep process alive so BackgroundScheduler can run
+                print("Scheduler started. Press Ctrl+C to exit and stop scheduler.")
+                try:
+                    while True:
+                        time.sleep(3600)
+                except KeyboardInterrupt:
+                    print("Keyboard interrupt received. Stopping scheduler...")
+                    sched.stop()
+            except Exception as e:
+                print(f"Failed to start scheduler: {e}")
+
+        elif args.action == "status":
+            status = sched.get_status()
+            print("Scheduler status:")
+            for k, v in status.items():
+                print(f"  {k}: {v}")
+
+        elif args.action == "run-now":
+            print("Triggering immediate run...")
+            result = sched.run_now(run_id="cli")
+            if result:
+                print("Run completed. Summary:")
+                print(f"  Search results: {len(result.get('search_results', []))}")
+                print(f"  Scholarships: {len(result.get('scholarships', []))}")
+                print(f"  Posted: {len(result.get('posted_scholarships', []))}")
+            else:
+                print("Run failed. Check logs for details.")
+
+        elif args.action == "stop":
+            sched.stop()
+            print("Scheduler stopped.")
+
+
+async def _run_with_queries(queries: list):
+    """Run workflow with provided queries and print summary."""
+    agent = ScholarshipAgent()
+    try:
+        await agent.run_workflow(search_queries=queries)
+    finally:
+        agent.shutdown()
+
+
 if __name__ == "__main__":
-    main_sync()
+    cli_entry()
 

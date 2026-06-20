@@ -59,7 +59,7 @@ class ScholarshipScheduler:
                 search_queries=[],  # Use rotation from search agent
                 execution_metadata={
                     "scheduled_run": True,
-                    "scheduled_at": datetime.utcnow().isoformat(),
+                    "scheduled_at": datetime.now().isoformat(),
                 },
             )
 

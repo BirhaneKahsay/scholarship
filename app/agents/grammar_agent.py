@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List
 
-from langchain.llms.openai import OpenAI
+from langchain_openai import ChatOpenAI
 
 from app.agents.base_agent import BaseAgent
 from app.config import settings
@@ -44,9 +44,10 @@ class GrammarAgent(BaseAgent):
             name="GrammarAgent",
             description="Improves scholarship message grammar and readability"
         )
-        self.llm = OpenAI(
+        self.llm = ChatOpenAI(
             api_key=settings.openai_api_key,
             model_name=settings.openai_model,
+            base_url="https://openrouter.ai/api/v1",
             temperature=0.5,  # Slightly creative for better writing
             max_tokens=500,
             request_timeout=settings.llm_timeout,

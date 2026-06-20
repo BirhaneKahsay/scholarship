@@ -422,7 +422,7 @@ class SearchAgent(BaseAgent):
             # Filter results
             filtered_results = self.filter_search_results(
                 all_results,
-                min_priority=settings.get("min_source_priority", 0)
+                min_priority=0
             )
             self.log_info(f"After filtering: {len(filtered_results)}")
             
@@ -439,7 +439,7 @@ class SearchAgent(BaseAgent):
             state.execution_metadata["search_agent_total_found"] = len(all_results)
             state.execution_metadata["search_agent_after_filter"] = len(filtered_results)
             state.execution_metadata["search_agent_final"] = len(unique_results)
-            state.execution_metadata["search_agent_completed_at"] = datetime.utcnow().isoformat()
+            state.execution_metadata["search_agent_completed_at"] = datetime.now().isoformat()
             
             self.log_info(f"Search agent completed: {len(unique_results)} scholarships ready for extraction")
             return state

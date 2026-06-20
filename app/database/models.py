@@ -71,8 +71,8 @@ class Scholarship(Base):
     source_url = Column(String(1000), nullable=True)  # Where we found it
     hash_value = Column(String(64), nullable=True, unique=True)  # For duplicate detection
 
-    # Metadata
-    metadata = Column(JSONB, nullable=True)  # Store additional extraction data
+    # Metadata (renamed to avoid SQLAlchemy reserved attribute collision)
+    extra_metadata = Column(JSONB, nullable=True)  # Store additional extraction data
 
     __table_args__ = (
         Index("idx_scholarship_country_deadline", "country", "application_deadline"),
@@ -118,8 +118,8 @@ class TelegramMessage(Base):
     forward_count = Column(Integer, default=0)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(), nullable=False)
+    updated_at = Column(DateTime, default=datetime.now(), onupdate=datetime.now())
 
     __table_args__ = (
         Index("idx_telegram_sent", "is_sent", "sent_at"),
@@ -233,7 +233,7 @@ class SchedulerRun(Base):
 
     # Metadata
     execution_time_seconds = Column(Float, nullable=True)
-    metadata = Column(JSONB, nullable=True)
+    extra_metadata = Column(JSONB, nullable=True)
 
     __table_args__ = (
         Index("idx_scheduler_run_time", "actual_start_time"),

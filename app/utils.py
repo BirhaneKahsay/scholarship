@@ -211,7 +211,7 @@ def is_deadline_passed(deadline: datetime) -> bool:
     if not deadline:
         return True
     
-    return datetime.utcnow() > deadline
+    return datetime.now() > deadline
 
 
 def format_for_telegram(data: Dict[str, Any]) -> str:

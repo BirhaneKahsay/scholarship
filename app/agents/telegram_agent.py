@@ -42,8 +42,9 @@ class TelegramAgent(BaseAgent):
             description="Publishes scholarship announcements to Telegram"
         )
         self.bot = Bot(token=settings.telegram_bot_token)
-        self.channel_id = settings.telegram_channel_id
+        self.channel_id = settings.telegram_channel_id  # can be None
         self.group_id = settings.telegram_group_id
+        self.primary_chat_id = self.group_id or self.channel_id  # group takes priority
         self.sent_count = 0
         self.failed_count = 0
 
@@ -133,7 +134,7 @@ class TelegramAgent(BaseAgent):
                 telegram_chat_id=self.channel_id,
                 telegram_chat_type="channel",
                 is_sent=is_sent,
-                sent_at=datetime.utcnow() if is_sent else None,
+                sent_at=datetime.now() if is_sent else None,
                 send_error=error_message if not is_sent else None,
             )
             
@@ -219,17 +220,12 @@ class TelegramAgent(BaseAgent):
                 success = await self.send_message_with_db(
                     scholarship=scholarship,
                     message=message,
-                    chat_id=self.channel_id
+                    chat_id=self.primary_chat_id
                 )
-                
+
                 if success:
                     posted_ids.append(scholarship.get("scholarship_name", ""))
-                    
-                    # Also send to group if configured
-                    if self.group_id:
-                        await asyncio.sleep(1)
-                        await self.send_to_channel(message, self.group_id)
-                
+                                
                 # Delay between messages
                 if i < len(messages):
                     await asyncio.sleep(delay_between_messages)

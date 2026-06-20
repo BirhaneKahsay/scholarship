@@ -6,7 +6,7 @@ Uses SQLAlchemy with PostgreSQL.
 import logging
 from typing import Generator
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
@@ -16,21 +16,30 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # Create SQLAlchemy engine
-engine = create_engine(
-    settings.database_url,
-    echo=settings.sqlalchemy_echo,
-    pool_size=10,
-    max_overflow=20,
-    pool_recycle=3600,  # Recycle connections every hour
-    pool_pre_ping=True,  # Verify connections before using
-    poolclass=NullPool if settings.environment == "development" else None,
-)
+if settings.environment == "development":
+    engine = create_engine(
+        settings.database_url,
+        echo=settings.sqlalchemy_echo,
+        pool_pre_ping=True,
+        poolclass=NullPool,
+    )
+else:
+    engine = create_engine(
+        settings.database_url,
+        echo=settings.sqlalchemy_echo,
+        pool_size=10,
+        max_overflow=20,
+        pool_recycle=3600,  # Recycle connections every hour
+        pool_pre_ping=True,  # Verify connections before using
+    )
 
 # Configure event listeners for engine
 @event.listens_for(engine, "connect")
 def receive_connect(dbapi_conn, connection_record):
     """Enable UUID support in PostgreSQL."""
-    dbapi_conn.execute("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
+    
+    with dbapi_conn.cursor() as cursor:
+        cursor.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
 
 
 # Create session factory
